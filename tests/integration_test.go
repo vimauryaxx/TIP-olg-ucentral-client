@@ -1029,24 +1029,33 @@ func TestComponent_ConfigureNegative_SuccessWithErrorCode(t *testing.T) {
 
 	// Mock an inconsistent envelope: result=success but error_code=-32603
 	mockNATSResult(t, nc, "cmd.configure.vyos", "configure", "success", "commit successful", "-32603")
+	
+	// Mock a valid reboot response to act as a synchronization barrier
+	mockNATSResult(t, nc, "cmd.action.vyos.reboot", "action", "success", "rebooting", "")
 
 	cfg := getTestConfig(t, mc, ns)
 	startClientProcess(t, mc, cfg)
 
-	req := `{"jsonrpc":"2.0","method":"configure","id":102,"params":{"serial":"001122334455","uuid":790,"config":{"interfaces":[]}}}`
-	mc.SendMessage(t, req)
+	req1 := `{"jsonrpc":"2.0","method":"configure","id":102,"params":{"serial":"001122334455","uuid":790,"config":{"interfaces":[]}}}`
+	mc.SendMessage(t, req1)
 
-	// Because the NATS result envelope is malformed (success with error_code), validateResultEnvelope drops it.
-	// We wait a short duration and ensure NO response was sent to the mock cloud.
-	time.Sleep(2 * time.Second)
+	// Send a subsequent valid request as a barrier
+	req2 := `{"jsonrpc":"2.0","method":"reboot","id":103,"params":{"serial":"001122334455"}}`
+	mc.SendMessage(t, req2)
 
+	// Wait for the barrier request to complete. Because the NATS client processes the single 
+	// result.vyos subscription sequentially, receiving the response for ID 103 guarantees
+	// that the invalid envelope for ID 102 has already been validated and dropped.
+	mc.WaitForResponseWithID(t, 103, 5*time.Second)
+
+	// Verify ID 102 never received a response
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	for _, rawMsg := range mc.messages {
 		var r map[string]interface{}
 		json.Unmarshal(rawMsg, &r)
 		if idVal, ok := r["id"].(float64); ok && idVal == 102 {
-			t.Fatalf("Expected NO response due to dropped envelope, but got: %s", string(rawMsg))
+			t.Fatalf("Expected NO response for ID 102 due to dropped envelope, but got: %s", string(rawMsg))
 		}
 	}
 }
