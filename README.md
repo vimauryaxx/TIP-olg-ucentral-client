@@ -30,6 +30,7 @@ Config path resolution:
 
 Example config file:
 `config.example.json`
+*(Note: This file is provided purely to illustrate the structural schema of the configuration. It contains placeholder values that will fail strict validation out-of-the-box. You must configure it with consistent credentials and network schemes for your specific environment.)*
 
 Important rule:
 - Environment variables override operational timeouts, payload limits, and cache TTLs.
@@ -45,7 +46,7 @@ To successfully configure and connect the client to an OpenWiFi Cloud Controller
 
 1. **Obtain mTLS Certificates:** You must provision the device with a valid `cert.pem` and `key.pem` signed by the Cloud's operational Certificate Authority. You will also need the public Root CA bundle (`ca.pem` or system certificates).
 2. **Set the Target URL:** In `config.json`, configure the `cloud.url` to point to the Cloud Controller's WebSocket port (typically `15002`, not `443`), for example: `wss://openwifi.example.com:15002`.
-3. **Configure the Identity:** The `serial` field in your `config.json` **must exactly match** the Common Name (CN) embedded in your `cert.pem` (e.g., your device's MAC address). The Cloud Controller will strictly reject connections if the JSON serial and cryptographic identity do not match.
+3. **Configure the Identity:** The configured `serial` in `config.json` must match the device identity expected by the OpenWiFi Cloud Controller. Where the Controller binds the device identity to the client certificate CN, these values must match.
 4. **Start the Local Bus:** Ensure a local NATS server is running and accessible.
    * **Production:** Must use secure `tls://...` connections with a valid `credentials_file` and `ca_file`.
    * **Local/CI Development:** Can use plaintext `nats://127.0.0.1:4222` provided `"allow_insecure_local_dev": true` is explicitly set in the configuration.
@@ -88,8 +89,8 @@ TIP-olg-ucentral-client/
 
   tests/
     integration_test.go
-    mock_cloud.go
-    nats_test.go
+    system_e2e/
+      system_test.go
 ```
 
 ## Common commands
@@ -106,9 +107,12 @@ This client has been tested and validated against the [Mango Cloud](https://www.
 
 ## CI coverage
 `.github/workflows/ci.yml` validates:
-* gofmt formatting check
-* go test ./...
-* go build ./...
+* Module verification
+* `gofmt` formatting check
+* `go vet` and `staticcheck` for static analysis
+* `govulncheck` and advisory `gosec` for security vulnerabilities
+* `go test -v -race -p=1 ./...` (with data race detection and sequential execution)
+* `go build ./...`
 
 ## Binary usage
 The current binary supports:
