@@ -16,7 +16,7 @@ The default mode relies on strict TLS and NKey validation for production securit
 * Maintains an active state machine lock for heavy actions (like `upgrade` or `reboot`) to prevent conflicting concurrent state changes.
 * Manages request timeouts based on configurable environment variables.
 * Caches completed transaction responses for a configurable TTL so duplicate requests can be safely replayed without re-executing the downstream operation.
-* Pushes standard telemetry directly from NATS to the Cloud Controller.
+* Pushes standard telemetry directly from NATS to the Cloud Controller (To be implemented).
 
 ## Configuration
 The client uses JSON as the runtime source of truth.
@@ -33,7 +33,7 @@ Example config file:
 *(Note: This file is provided purely to illustrate the structural schema of the configuration. It contains placeholder values that will fail strict validation out-of-the-box. You must configure it with consistent credentials and network schemes for your specific environment.)*
 
 Important rule:
-- Environment variables override operational timeouts, payload limits, and cache TTLs.
+- Environment variables override operational timeouts, payload limits, and cache TTLs. A complete list of all supported operational variables and their defaults is documented in the provided `.env.example` file.
 - `config.json` dictates network routes, queue capacities, TLS paths, and the device serial number.
 
 The agent must not hardcode Cloud URLs, NATS servers, or TLS paths.
@@ -61,6 +61,7 @@ TIP-olg-ucentral-client/
   README.md
   SPEC.md
   config.example.json
+  .env.example
   go.mod
 
   cmd/
