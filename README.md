@@ -15,7 +15,7 @@ The default mode relies on strict TLS and NKey validation for production securit
 * Maintains strict payload size limits (e.g., 10MB configure limit) to prevent memory exhaustion.
 * Maintains an active state machine lock for heavy actions (like `upgrade` or `reboot`) to prevent conflicting concurrent state changes.
 * Manages request timeouts based on configurable environment variables.
-* Intercepts and caches idempotent state responses in a high-performance LRU cache.
+* Caches completed transaction responses for a configurable TTL so duplicate requests can be safely replayed without re-executing the downstream operation.
 * Pushes standard telemetry directly from NATS to the Cloud Controller.
 
 ## Configuration
@@ -103,7 +103,7 @@ go run ./cmd/ucentral-client -config ./config.json
 ```
 
 ## Testing
-This client has been tested and validated against the [Mango Cloud](https://www.mangowifi.cloud/) deployment. This real-world integration confirms compatibility with core OpenWiFi Cloud Controller specifications, including strict mTLS WebSocket handshakes, JSON-RPC 2.0 schema validation, and real-time NATS state synchronization under production-like conditions.
+This client has been tested and validated against the opensource OpenLan Cloud Controller [Mango Cloud](https://www.mangowifi.cloud/) deployment version 1.0. This real-world integration confirms compatibility with core OpenWiFi Cloud Controller specifications, including strict mTLS WebSocket handshakes, JSON-RPC 2.0 schema validation, and real-time NATS state synchronization under production-like conditions.
 
 ## CI coverage
 `.github/workflows/ci.yml` validates:
