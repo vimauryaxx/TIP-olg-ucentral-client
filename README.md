@@ -22,11 +22,11 @@ The default mode relies on strict TLS and NKey validation for production securit
 The client uses JSON as the runtime source of truth.
 
 Default config path:
-`/etc/ucentral/config.json`
+`config.json`
 
-Config path resolution order:
-1. `-config /path/to/config.json`
-2. Default fallback (if compiled or set otherwise)
+Config path resolution:
+1. The path supplied with `-config`.
+2. `config.json` when `-config` is omitted.
 
 Example config file:
 `config.example.json`
@@ -46,7 +46,9 @@ To successfully configure and connect the client to an OpenWiFi Cloud Controller
 1. **Obtain mTLS Certificates:** You must provision the device with a valid `cert.pem` and `key.pem` signed by the Cloud's operational Certificate Authority. You will also need the public Root CA bundle (`ca.pem` or system certificates).
 2. **Set the Target URL:** In `config.json`, configure the `cloud.url` to point to the Cloud Controller's WebSocket port (typically `15002`, not `443`), for example: `wss://openwifi.example.com:15002`.
 3. **Configure the Identity:** The `serial` field in your `config.json` **must exactly match** the Common Name (CN) embedded in your `cert.pem` (e.g., your device's MAC address). The Cloud Controller will strictly reject connections if the JSON serial and cryptographic identity do not match.
-4. **Start the Local Bus:** Ensure a local NATS server is running and accessible (default `nats://localhost:4222`).
+4. **Start the Local Bus:** Ensure a local NATS server is running and accessible.
+   * **Production:** Must use secure `tls://...` connections with a valid `credentials_file` and `ca_file`.
+   * **Local/CI Development:** Can use plaintext `nats://127.0.0.1:4222` provided `"allow_insecure_local_dev": true` is explicitly set in the configuration.
 5. **Run the Daemon:** Start the client using `go run ./cmd/ucentral-client -config ./config.json`.
 
 ## Local state
@@ -96,11 +98,11 @@ go test ./...
 UNFORMATTED=$(gofmt -l $(find . -type f -name '*.go' -not -path './.git/*'))
 test -z "$UNFORMATTED"
 go build ./...
-go run ./cmd/ucentral-client -config ./config.example.json
+go run ./cmd/ucentral-client -config ./config.json
 ```
 
 ## Testing
-This client has been rigorously tested and validated against the [Mango Cloud](https://www.mangowifi.cloud/) deployment. This real-world testing guarantees full compatibility with standard OpenWiFi Cloud Controller specifications, including strict mTLS WebSocket handshakes, deep JSON-RPC 2.0 schema validation, and real-time NATS state synchronization under production-like conditions.
+This client has been tested and validated against the [Mango Cloud](https://www.mangowifi.cloud/) deployment. This real-world integration confirms compatibility with core OpenWiFi Cloud Controller specifications, including strict mTLS WebSocket handshakes, JSON-RPC 2.0 schema validation, and real-time NATS state synchronization under production-like conditions.
 
 ## CI coverage
 `.github/workflows/ci.yml` validates:
