@@ -133,7 +133,6 @@ To guarantee flawless integration with the existing VyOS NATS client, all NATS s
 *   **Log Publish:** `logs.<target>` (Pub-Sub)
 *   **Health Publish:** `health.<target>` (Pub-Sub)
 *   **Command Result:** `result.<target>` (Pub-Sub)
-*   **Capability Discovery:** 
 *   **Device Status Query:** `status.get.<target>` (Request-Reply)
 
 The `status.get` subject is owned by the downstream device/local agent. The uCentral client publishes request-reply queries to this subject for current device/platform status and upgrade recovery. The uCentral client must not subscribe to or respond on this subject.
