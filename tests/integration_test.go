@@ -258,6 +258,11 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 		t.Fatalf("Failed to write capabilities.json: %v", err)
 	}
 
+	mapFile := filepath.Join(filepath.Dir(capFile), "interface_map.json")
+	if err := os.WriteFile(mapFile, []byte(`{"serial": "001122334455", "mappings": []}`), 0644); err != nil {
+		t.Fatalf("Failed to write interface_map.json: %v", err)
+	}
+
 	return map[string]interface{}{
 		"serial":            "001122334455",
 		"capabilities_file": capFile,

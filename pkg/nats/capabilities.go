@@ -13,20 +13,19 @@ type CapabilityCache struct {
 	mu           sync.RWMutex
 	capabilities []byte
 	firmware     string
-	stubPath     string
+	filePath     string
 }
 
 // NewCapabilityCache initializes a new cache.
-// stubPath points to the runtime JSON file fallback.
-func NewCapabilityCache(stubPath string) *CapabilityCache {
+// filePath points to the runtime JSON capabilities file provided by EVE OS.
+func NewCapabilityCache(filePath string) *CapabilityCache {
 	return &CapabilityCache{
-		stubPath: stubPath,
+		filePath: filePath,
 	}
 }
 
 // LoadFromDisk reads and parses the capabilities from the provided file path.
 // It returns the raw payload and extracted firmware string without mutating state.
-// This stubs out the missing NATS fetch logic.
 func (c *CapabilityCache) LoadFromDisk(filePath string) ([]byte, string, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -66,12 +65,12 @@ func (c *CapabilityCache) GetCapabilities() ([]byte, error) {
 	loaded := len(c.capabilities) > 0
 	c.mu.RUnlock()
 
-	// Cache miss: attempt to load from disk (Stub for NATS fetch)
+	// Cache miss: attempt to load from disk
 	if !loaded {
 		c.mu.Lock()
 		// Double-check under write lock to avoid stampedes
 		if len(c.capabilities) == 0 {
-			data, firmware, err := c.LoadFromDisk(c.stubPath)
+			data, firmware, err := c.LoadFromDisk(c.filePath)
 			if err != nil {
 				c.mu.Unlock()
 				return nil, err

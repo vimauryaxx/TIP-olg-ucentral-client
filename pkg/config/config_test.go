@@ -203,7 +203,7 @@ func TestConfig_Validation(t *testing.T) {
 		name string
 		mut  func(c *Config)
 	}{
-		{"Empty serial", func(c *Config) { c.Serial = "" }},
+
 		{"Malformed URL", func(c *Config) { c.Cloud.URL = "wss://" }},
 		{"Missing host URL", func(c *Config) { c.Cloud.URL = "wss:// invalid" }},
 		{"Invalid URL scheme", func(c *Config) { c.Cloud.URL = "ws://insecure" }},

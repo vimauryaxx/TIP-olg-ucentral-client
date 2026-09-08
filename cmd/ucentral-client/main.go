@@ -58,6 +58,13 @@ func main() {
 		log.Fatalf("FATAL: Invalid configuration: %v", err)
 	}
 
+	// 2.5 Load physical serial number from mapping file
+	serial, err := config.LoadSerialFromMapping("./interface_map.json")
+	if err != nil {
+		log.Fatalf("FATAL: Failed to read serial from mapping file: %v", err)
+	}
+	cfg.Serial = serial
+
 	// 3. Load CacheTTLConfig from environment variables
 	cacheTTLConfig, err := config.LoadCacheTTLConfigFromEnv()
 	if err != nil {

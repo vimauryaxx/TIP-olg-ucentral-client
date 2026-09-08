@@ -287,10 +287,6 @@ func (q *QueueConfig) Validate() error {
 }
 
 func (c *Config) Validate() error {
-	c.Serial = strings.TrimSpace(c.Serial)
-	if c.Serial == "" {
-		return fmt.Errorf("serial is required")
-	}
 	if err := c.Cloud.Validate(); err != nil {
 		return err
 	}
