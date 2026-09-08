@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nkeys"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -359,4 +360,89 @@ func generateTestCreds(t *testing.T) string {
 		t.Fatalf("failed to format user config: %v", err)
 	}
 	return string(creds)
+}
+
+func TestLoadSerialFromMapping(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name        string
+		fileContent string
+		fileExists  bool
+		wantSerial  string
+		wantErr     bool
+	}{
+		{
+			name:        "valid serial",
+			fileContent: `{"serial": "abc123def456"}`,
+			fileExists:  true,
+			wantSerial:  "abc123def456",
+			wantErr:     false,
+		},
+		{
+			name:        "missing file",
+			fileContent: "",
+			fileExists:  false,
+			wantSerial:  "",
+			wantErr:     true,
+		},
+		{
+			name:        "malformed JSON",
+			fileContent: `{serial: "abc"}`,
+			fileExists:  true,
+			wantSerial:  "",
+			wantErr:     true,
+		},
+		{
+			name:        "missing serial field",
+			fileContent: `{"other": "value"}`,
+			fileExists:  true,
+			wantSerial:  "",
+			wantErr:     true,
+		},
+		{
+			name:        "empty serial",
+			fileContent: `{"serial": ""}`,
+			fileExists:  true,
+			wantSerial:  "",
+			wantErr:     true,
+		},
+		{
+			name:        "whitespace serial",
+			fileContent: `{"serial": "   "}`,
+			fileExists:  true,
+			wantSerial:  "",
+			wantErr:     true,
+		},
+		{
+			name:        "whitespace padded serial",
+			fileContent: `{"serial": "   abc123def456   "}`,
+			fileExists:  true,
+			wantSerial:  "abc123def456",
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filePath := filepath.Join(tempDir, "interface_map_"+strings.ReplaceAll(tt.name, " ", "_")+".json")
+
+			if tt.fileExists {
+				err := os.WriteFile(filePath, []byte(tt.fileContent), 0644)
+				if err != nil {
+					t.Fatalf("Failed to write mock file: %v", err)
+				}
+			}
+
+			got, err := LoadSerialFromMapping(filePath)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LoadSerialFromMapping() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.wantSerial {
+				t.Errorf("LoadSerialFromMapping() got = %v, want %v", got, tt.wantSerial)
+			}
+		})
+	}
 }
