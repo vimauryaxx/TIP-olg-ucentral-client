@@ -344,8 +344,13 @@ func createHTTPClient(t *testing.T, timeout time.Duration) *http.Client {
 
 	caFile := getEnvOrDefault("OW_CA_FILE", "")
 	if caFile != "" {
-		if caCert, err := os.ReadFile(caFile); err == nil {
-			caCertPool.AppendCertsFromPEM(caCert)
+		caCert, err := os.ReadFile(caFile)
+		if err != nil {
+			t.Fatalf("Failed to read CA file %s: %v", caFile, err)
+		}
+
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			t.Fatalf("Failed to parse CA certificate from %s", caFile)
 		}
 	}
 	tlsConfig.RootCAs = caCertPool

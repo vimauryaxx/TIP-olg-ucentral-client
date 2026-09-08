@@ -423,9 +423,10 @@ func LoadSerialFromMapping(filePath string) (string, error) {
 		return "", fmt.Errorf("failed to parse interface map JSON: %w", err)
 	}
 
-	if payload.Serial == "" {
-		return "", fmt.Errorf("serial field is empty in mapping file")
+	serial := strings.TrimSpace(payload.Serial)
+	if serial == "" {
+		return "", fmt.Errorf("serial field is empty or whitespace in mapping file")
 	}
 
-	return payload.Serial, nil
+	return serial, nil
 }
