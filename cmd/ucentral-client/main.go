@@ -59,7 +59,7 @@ func main() {
 	}
 
 	// 2.5 Load physical serial number from mapping file
-	serial, err := config.LoadSerialFromMapping("./interface_map.json")
+	serial, err := config.LoadSerialFromMapping("/etc/ucentral/interface_map.json")
 	if err != nil {
 		log.Fatalf("FATAL: Failed to read serial from mapping file: %v", err)
 	}
@@ -478,7 +478,7 @@ func initializeComponents(ctx context.Context, cfg *config.Config, cacheTTLConfi
 
 	// Initialize capability cache
 	log.Println("Initializing CapabilityCache...")
-	capCache := nats.NewCapabilityCache("./capabilities.json")
+	capCache := nats.NewCapabilityCache("/etc/ucentral/capabilities.json")
 
 	// Initialize Outbound Schedulers and Buffers
 	log.Println("Initializing Outbound Schedulers...")
