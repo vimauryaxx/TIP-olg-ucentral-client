@@ -403,7 +403,9 @@ func startClientProcess(t *testing.T, mc *MockCloud, cfg map[string]interface{})
 
 func TestConfigValidation_InvalidConfig(t *testing.T) {
 	cfg := getTestConfig(t, startMockCloud(t), startEmbeddedNATS(t))
-	cfg["serial"] = ""
+	// Invalidate a field that config.json still owns to ensure config validation fails
+	cloudCfg := cfg["cloud"].(map[string]interface{})
+	cloudCfg["url"] = "://invalid-url" // Malformed URL will fail Cloud.Validate()
 	configPath := writeTempConfig(t, cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

@@ -208,7 +208,7 @@ This document details the test plans, test cases, and verification strategies fo
     *   *Setup & Assert (Expiration):* Write results for `ping` (using `Default` TTL 2 mins), `configure` (using overridden 6 mins), `reboot` (default 10 mins), `factory` (default 30 mins), and `upgrade` (default 60 mins) to `TransactionCache`. Mock clock time to advance 15 minutes. Cache lookups for `ping`, `configure`, and `reboot` must return `false` (expired). Lookups for `factory` and `upgrade` must return `true` (cached).
 *   **TC-RM-006 (Transaction Retry Policy & Backoff):**
     *   *Requirement Mapping:* `REQ-025` (Transaction Retry Policy)
-    *   *Setup:* Submit a read-only request (`capabilities.get`) and a state-changing request (`configure`). For the read-only request, simulate timeouts for attempt 1 and 2. After attempt 2 times out, simulate a late downstream response for attempt 1 arriving exactly while attempt 3 is active on the wire.
+    *   *Setup:* Submit a read-only request (`status.get`) and a state-changing request (`configure`). For the read-only request, simulate timeouts for attempt 1 and 2. After attempt 2 times out, simulate a late downstream response for attempt 1 arriving exactly while attempt 3 is active on the wire.
     *   *Assert:* The state-changing request must fail fast on the first error with no retries. The read-only request must retain the exact same `rpc_id` across 3 total attempts (1 initial + 2 retries). Each attempt must use an independent request timeout. The overall transaction must remain active during the exponential backoff periods. When the late response for attempt 1 arrives during attempt 3, the transaction must immediately transition to `Completed`, winning the race, and any subsequent reply from attempt 3 must be gracefully ignored.
 *   **TC-RM-007 (JSON-RPC ID Preservation & Boundaries):**
     *   *Requirement Mapping:* `REQ-027` (JSON-RPC ID Preservation & Edge Cases)
@@ -344,7 +344,7 @@ This document details the test plans, test cases, and verification strategies fo
 *   **TC-NET-008 (Capability Retrieval & Caching Lifecycle):**
     *   *Requirement Mapping:* `REQ-022` (Capability Caching & Lifecycle)
     *   *Setup:* Start the client with NATS and the downstream responder initially unavailable. Verify retry backoff. Bring NATS and the responder online. Trigger a subsequent NATS reconnect event.
-    *   *Assert:* The client must retry capability retrieval with bounded backoff until successful. Once the cache is successfully populated, no new fetch must be triggered on subsequent NATS reconnect events. Simulate a local Unix socket capabilities refresh command; the capabilities must be updated.
+    *   *Assert:* The client must retrieve capabilities from the local file system. Simulate a local Unix socket capabilities refresh command; the capabilities must be updated.
 *   **TC-NET-010 (Independent Connection-State Transitions & Lifecycle Edges):**
     *   *Requirement Mapping:* `REQ-002`
     *   *Setup:* Independently change Cloud, NATS, and protocol verification states.
