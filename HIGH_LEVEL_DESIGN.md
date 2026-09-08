@@ -150,7 +150,6 @@ sequenceDiagram
     participant VyOS as VyOS NATS Client
 
     GoClient->>Cloud: WebSocket 'connect'
-    GoClient->>NATS: Request 'capabilities.get' (with CloudCapabilitiesQuery envelope)
     NATS->>VyOS: Deliver Request
     VyOS->>VyOS: Read local capabilities
     VyOS-->>NATS: Reply: JSON capability payload

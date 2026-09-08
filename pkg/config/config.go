@@ -407,3 +407,25 @@ func LoadConfig(path string) (*Config, error) {
 
 	return &cfg, nil
 }
+
+// LoadSerialFromMapping reads the interface_map.json file and extracts the hardware serial number.
+func LoadSerialFromMapping(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read interface map file: %w", err)
+	}
+
+	var payload struct {
+		Serial string `json:"serial"`
+	}
+
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", fmt.Errorf("failed to parse interface map JSON: %w", err)
+	}
+
+	if payload.Serial == "" {
+		return "", fmt.Errorf("serial field is empty in mapping file")
+	}
+
+	return payload.Serial, nil
+}
