@@ -341,7 +341,7 @@ func createHTTPClient(t *testing.T, timeout time.Duration) *http.Client {
 	if err != nil || caCertPool == nil {
 		caCertPool = x509.NewCertPool()
 	}
-	
+
 	caFile := getEnvOrDefault("OW_CA_FILE", "")
 	if caFile != "" {
 		if caCert, err := os.ReadFile(caFile); err == nil {

@@ -181,7 +181,6 @@ func (n *NATSClient) ExecuteAction(ctx context.Context, cmd *agentcore.ActionCom
 	return err
 }
 
-
 func (n *NATSClient) QueryDeviceStatus(ctx context.Context, query *contracts.CloudDeviceStatusQuery) (*agentcore.StatusEnvelope, error) {
 	return nil, errors.New("QueryDeviceStatus not implemented in agentcore")
 }

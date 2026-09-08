@@ -41,7 +41,6 @@ type DeviceCapabilities struct {
 	Firmware     string          `json:"firmware"`
 }
 
-
 type CloudDeviceStatusQuery struct {
 	Version   string    `json:"version"`
 	RPCID     string    `json:"rpc_id"`

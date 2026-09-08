@@ -1,6 +1,7 @@
 //go:build integration
 
 package tests
+
 import (
 	"context"
 	"crypto/rand"
