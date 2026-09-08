@@ -1,3 +1,6 @@
+//go:build e2e
+// +build e2e
+
 package tests
 
 import (
@@ -253,12 +256,12 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 		t.Fatalf("Failed to write dummy client key: %v", err)
 	}
 
-	capFile := filepath.Join(t.TempDir(), "capabilities.json")
+	capFile := "/etc/ucentral/capabilities.json"
 	if err := os.WriteFile(capFile, []byte(`{"compatible":"vyos", "version": {"olg": {"major": 1, "minor": 0, "patch": 0}}}`), 0644); err != nil {
 		t.Fatalf("Failed to write capabilities.json: %v", err)
 	}
 
-	mapFile := filepath.Join(filepath.Dir(capFile), "interface_map.json")
+	mapFile := "/etc/ucentral/interface_map.json"
 	if err := os.WriteFile(mapFile, []byte(`{"serial": "001122334455", "mappings": []}`), 0644); err != nil {
 		t.Fatalf("Failed to write interface_map.json: %v", err)
 	}

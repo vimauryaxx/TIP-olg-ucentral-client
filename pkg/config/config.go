@@ -80,7 +80,7 @@ type QueueConfig struct {
 }
 
 type Config struct {
-	Serial string      `json:"serial"`
+	Serial string      `json:"-"`
 	Cloud  CloudConfig `json:"cloud"`
 	NATS   NATSConfig  `json:"nats"`
 	Queues QueueConfig `json:"queues"`
