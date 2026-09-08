@@ -1,8 +1,6 @@
-//go:build e2e
-// +build e2e
+//go:build integration
 
 package tests
-
 import (
 	"context"
 	"crypto/rand"
@@ -138,6 +136,19 @@ func (mc *MockCloud) WaitForConnection(t *testing.T, timeout time.Duration) {
 
 func (mc *MockCloud) SendMessage(t *testing.T, msg string) {
 	t.Helper()
+
+	mapBytes, err := os.ReadFile("/etc/ucentral/interface_map.json")
+	if err != nil {
+		t.Fatalf("Real interface_map.json not found! Tests require the real file: %v", err)
+	}
+	var mapData struct {
+		Serial string `json:"serial"`
+	}
+	if err := json.Unmarshal(mapBytes, &mapData); err != nil || mapData.Serial == "" {
+		t.Fatalf("Failed to parse real serial from interface_map.json: %v", err)
+	}
+	msg = strings.ReplaceAll(msg, "001122334455", mapData.Serial)
+
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
 	if mc.conn == nil {
@@ -256,18 +267,23 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 		t.Fatalf("Failed to write dummy client key: %v", err)
 	}
 
-	capFile := "/etc/ucentral/capabilities.json"
-	if err := os.WriteFile(capFile, []byte(`{"compatible":"vyos", "version": {"olg": {"major": 1, "minor": 0, "patch": 0}}}`), 0644); err != nil {
-		t.Fatalf("Failed to write capabilities.json: %v", err)
+	mapFile := "/etc/ucentral/interface_map.json"
+	mapBytes, err := os.ReadFile(mapFile)
+	if err != nil {
+		t.Fatalf("Real interface_map.json not found! Tests require the real file to exist at %s: %v", mapFile, err)
 	}
 
-	mapFile := "/etc/ucentral/interface_map.json"
-	if err := os.WriteFile(mapFile, []byte(`{"serial": "001122334455", "mappings": []}`), 0644); err != nil {
-		t.Fatalf("Failed to write interface_map.json: %v", err)
+	var mapData struct {
+		Serial string `json:"serial"`
 	}
+	if err := json.Unmarshal(mapBytes, &mapData); err != nil || mapData.Serial == "" {
+		t.Fatalf("Failed to parse real serial from interface_map.json: %v", err)
+	}
+	testSerial := mapData.Serial
+	capFile := "/etc/ucentral/capabilities.json"
 
 	return map[string]interface{}{
-		"serial":            "001122334455",
+		"serial":            testSerial,
 		"capabilities_file": capFile,
 		"cloud": map[string]interface{}{
 			"url":                              mc.URL,
@@ -364,9 +380,7 @@ func startClientProcess(t *testing.T, mc *MockCloud, cfg map[string]interface{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd := exec.CommandContext(ctx, clientBinPath, "-config", writeTempConfig(t, cfg))
-	if capFile, ok := cfg["capabilities_file"].(string); ok {
-		cmd.Dir = filepath.Dir(capFile)
-	}
+	cmd.Dir = t.TempDir()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
