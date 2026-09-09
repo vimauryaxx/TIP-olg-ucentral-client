@@ -1,5 +1,3 @@
-//go:build integration
-
 package tests
 
 import (
@@ -268,24 +266,16 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 		t.Fatalf("Failed to write dummy client key: %v", err)
 	}
 
-	mapFile := "/etc/ucentral/interface_map.json"
-	mapBytes, err := os.ReadFile(mapFile)
-	if err != nil {
-		t.Fatalf("Real interface_map.json not found! Tests require the real file to exist at %s: %v", mapFile, err)
-	}
-
-	var mapData struct {
-		Serial string `json:"serial"`
-	}
-	if err := json.Unmarshal(mapBytes, &mapData); err != nil || mapData.Serial == "" {
-		t.Fatalf("Failed to parse real serial from interface_map.json: %v", err)
-	}
-	testSerial := mapData.Serial
-	capFile := "/etc/ucentral/capabilities.json"
+	testSerial := "001122334455"
+	mapFile := filepath.Join(t.TempDir(), "interface_map.json")
+	os.WriteFile(mapFile, []byte(fmt.Sprintf(`{"serial": "%s"}`, testSerial)), 0644)
+	capFile := filepath.Join(t.TempDir(), "capabilities.json")
+	os.WriteFile(capFile, []byte(`{"compatible": "OpenLAN Gateway"}`), 0644)
 
 	return map[string]interface{}{
-		"serial":            testSerial,
-		"capabilities_file": capFile,
+		"serial":             testSerial,
+		"capabilities_file":  capFile,
+		"interface_map_file": mapFile,
 		"cloud": map[string]interface{}{
 			"url":                              mc.URL,
 			"connect_timeout_seconds":          30,

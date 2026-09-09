@@ -140,12 +140,12 @@ The `status.get` subject is owned by the downstream device/local agent. The uCen
 *Security Boundary:* Read-only metadata calls (such as capability and status retrieval) are mapped to their own explicit subject namespaces, keeping them separate from destructive/operational `action.*` subjects. The daemon acts as a 1-to-N gateway routing these actions securely to the appropriate downstream agent.
 
 ### 2.4 Capability Discovery & Caching Flow
-At startup, the client retrieves the hardware capabilities directly from the EVE OS provisioned file:
+At startup, the client retrieves the hardware capabilities directly from the provisioned file:
 
 ```mermaid
 sequenceDiagram
     participant GoClient as uCentral Client
-    participant OS as EVE OS File System
+    participant OS as Host Machine File System
     participant Cloud as OpenWiFi Cloud
 
     GoClient->>OS: os.ReadFile(/etc/ucentral/capabilities.json)
@@ -154,7 +154,7 @@ sequenceDiagram
     GoClient->>Cloud: WebSocket 'connect' with capabilities
 ```
 
-*   **Caching Strategy:** The capability cache is populated immediately at startup by reading the securely provisioned hardware file. Once loaded, the capabilities are retained in memory and served directly to the Cloud during the WebSocket handshake. If the physical file is missing or unreadable, the client initialization will fail until the hardware is correctly provisioned by EVE OS.
+*   **Caching Strategy:** The capability cache is populated immediately at startup by reading the securely provisioned hardware file. Once loaded, the capabilities are retained in memory and served directly to the Cloud during the WebSocket handshake. If the physical file is missing or unreadable, the client initialization will fail until the hardware is correctly provisioned by the host machine.
 *   **Refresh Events:** The cache is refreshed only:
     1. Upon detecting a firmware version change.
     2. Upon receipt of a specific system reboot log indicating an upgrade.

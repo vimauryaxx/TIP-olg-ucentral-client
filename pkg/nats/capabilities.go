@@ -17,7 +17,7 @@ type CapabilityCache struct {
 }
 
 // NewCapabilityCache initializes a new cache.
-// filePath points to the runtime JSON capabilities file provided by EVE OS.
+// filePath points to the runtime JSON capabilities file provided by the host machine.
 func NewCapabilityCache(filePath string) *CapabilityCache {
 	return &CapabilityCache{
 		filePath: filePath,

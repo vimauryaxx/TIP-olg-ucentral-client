@@ -59,7 +59,11 @@ func main() {
 	}
 
 	// 2.5 Load physical serial number from mapping file
-	serial, err := config.LoadSerialFromMapping("/etc/ucentral/interface_map.json")
+	interfaceMapPath := "/etc/ucentral/interface_map.json"
+	if envPath := os.Getenv("OW_INTERFACE_MAP_FILE"); envPath != "" {
+		interfaceMapPath = envPath
+	}
+	serial, err := config.LoadSerialFromMapping(interfaceMapPath)
 	if err != nil {
 		log.Fatalf("FATAL: Failed to read serial from mapping file: %v", err)
 	}
@@ -478,7 +482,11 @@ func initializeComponents(ctx context.Context, cfg *config.Config, cacheTTLConfi
 
 	// Initialize capability cache
 	log.Println("Initializing CapabilityCache...")
-	capCache := nats.NewCapabilityCache("/etc/ucentral/capabilities.json")
+	capabilitiesPath := "/etc/ucentral/capabilities.json"
+	if envPath := os.Getenv("OW_CAPABILITIES_FILE"); envPath != "" {
+		capabilitiesPath = envPath
+	}
+	capCache := nats.NewCapabilityCache(capabilitiesPath)
 
 	// Initialize Outbound Schedulers and Buffers
 	log.Println("Initializing Outbound Schedulers...")
