@@ -155,10 +155,6 @@ sequenceDiagram
 ```
 
 *   **Caching Strategy:** The capability cache is populated immediately at startup by reading the securely provisioned hardware file. Once loaded, the capabilities are retained in memory and served directly to the Cloud during the WebSocket handshake. If the physical file is missing or unreadable, the client initialization will fail until the hardware is correctly provisioned by the host machine.
-*   **Refresh Events:** The cache is refreshed only:
-    1. Upon detecting a firmware version change.
-    2. Upon receipt of a specific system reboot log indicating an upgrade.
-    3. If an explicit capability refresh event is received over a local Unix domain socket (restricted to root access).
 
 ### 2.5 JetStream Consistency Model
 *   **Desired Configuration:** Leverages JetStream Key-Value (KV) store using `cfg_desired` bucket and key `desired.<serial>`. The client writes the desired state to KV, then publishes a lightweight trigger to the `config.apply` subject.

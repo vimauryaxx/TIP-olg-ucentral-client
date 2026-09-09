@@ -1162,7 +1162,6 @@ The uCentral client must not register a NATS responder for `status.get.<target>`
 
 #### PR 4.3: Dynamic Capabilities & Local Signal Sockets
 *   **Target File:** `pkg/nats/capabilities.go`
-*   **Unix Socket Refresh Handler:**
     ```go
     package nats
 
@@ -1170,8 +1169,6 @@ The uCentral client must not register a NATS responder for `status.get.<target>`
     	capabilities []byte
     	firmware     string
     }
-
-    func StartUnixSignalListener(socketPath string, refreshCallback func()) error
     ```
 
 ---
