@@ -256,9 +256,13 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 
 	testSerial := "001122334455"
 	mapFile := filepath.Join(t.TempDir(), "interface_map.json")
-	os.WriteFile(mapFile, []byte(fmt.Sprintf(`{"serial": "%s"}`, testSerial)), 0644)
+	if err := os.WriteFile(mapFile, []byte(fmt.Sprintf(`{"serial": "%s"}`, testSerial)), 0644); err != nil {
+		t.Fatalf("Failed to write mapFile: %v", err)
+	}
 	capFile := filepath.Join(t.TempDir(), "capabilities.json")
-	os.WriteFile(capFile, []byte(`{"compatible": "OpenLAN Gateway", "version": {"olg": {"major": 1, "minor": 0, "patch": 0}}}`), 0644)
+	if err := os.WriteFile(capFile, []byte(`{"compatible": "OpenLAN Gateway", "version": {"olg": {"major": 1, "minor": 0, "patch": 0}}}`), 0644); err != nil {
+		t.Fatalf("Failed to write capFile: %v", err)
+	}
 
 	t.Setenv("OW_INTERFACE_MAP_FILE", mapFile)
 	t.Setenv("OW_CAPABILITIES_FILE", capFile)
