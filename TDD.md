@@ -341,10 +341,10 @@ This document details the test plans, test cases, and verification strategies fo
     *   *Requirement Mapping:* `REQ-018` (Audit Logging & Loop Prevention)
     *   *Setup:* Force NATS publish failures during audit log writes.
     *   *Assert:* Client increments `audit_delivery_failure` but does not trigger recursive log writes.
-*   **TC-NET-008 (Capability Retrieval & Caching Lifecycle):**
-    *   *Requirement Mapping:* `REQ-022` (Capability Caching & Lifecycle)
-    *   *Setup:* Start the client with NATS and the downstream responder initially unavailable. Verify retry backoff. Bring NATS and the responder online. Trigger a subsequent NATS reconnect event.
-    *   *Assert:* The client must retrieve capabilities from the local file system. Simulate a local Unix socket capabilities refresh command; the capabilities must be updated.
+*   **TC-NET-008 (Capability Retrieval & Initialization):**
+    *   *Requirement Mapping:* `REQ-022` (Capability Initialization)
+    *   *Setup:* Start the client in various environments: 1) with a valid `capabilities.json` file, 2) with the file missing, 3) with malformed JSON, and 4) with the `version.olg` payload missing.
+    *   *Assert:* The client must successfully initialize and cache capabilities in scenario 1. In scenarios 2, 3, and 4, the client must immediately fail initialization and hard-crash on boot before attempting any NATS or WebSocket connections.
 *   **TC-NET-010 (Independent Connection-State Transitions & Lifecycle Edges):**
     *   *Requirement Mapping:* `REQ-002`
     *   *Setup:* Independently change Cloud, NATS, and protocol verification states.
