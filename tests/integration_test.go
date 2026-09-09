@@ -260,10 +260,10 @@ func getTestConfig(t *testing.T, mc *MockCloud, ns *server.Server) map[string]in
 	capFile := filepath.Join(t.TempDir(), "capabilities.json")
 	os.WriteFile(capFile, []byte(`{"compatible": "OpenLAN Gateway", "version": {"olg": {"major": 1, "minor": 0, "patch": 0}}}`), 0644)
 
+	t.Setenv("OW_INTERFACE_MAP_FILE", mapFile)
+	t.Setenv("OW_CAPABILITIES_FILE", capFile)
+
 	return map[string]interface{}{
-		"serial":             testSerial,
-		"capabilities_file":  capFile,
-		"interface_map_file": mapFile,
 		"cloud": map[string]interface{}{
 			"url":                              mc.URL,
 			"connect_timeout_seconds":          30,
@@ -360,10 +360,6 @@ func startClientProcess(t *testing.T, mc *MockCloud, cfg map[string]interface{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cmd := exec.CommandContext(ctx, clientBinPath, "-config", writeTempConfig(t, cfg))
 	cmd.Dir = t.TempDir()
-	cmd.Env = append(os.Environ(),
-		"OW_INTERFACE_MAP_FILE="+cfg["interface_map_file"].(string),
-		"OW_CAPABILITIES_FILE="+cfg["capabilities_file"].(string),
-	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
@@ -392,10 +388,6 @@ func TestConfigValidation_InvalidConfig(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, clientBinPath, "-config", configPath)
-	cmd.Env = append(os.Environ(),
-		"OW_INTERFACE_MAP_FILE="+cfg["interface_map_file"].(string),
-		"OW_CAPABILITIES_FILE="+cfg["capabilities_file"].(string),
-	)
 	err := cmd.Run()
 	if err == nil {
 		t.Fatalf("Expected client to fail on invalid config, but it succeeded")
