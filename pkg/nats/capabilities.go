@@ -16,12 +16,22 @@ type CapabilityCache struct {
 	filePath     string
 }
 
-// NewCapabilityCache initializes a new cache.
+// NewCapabilityCache initializes a new cache and validates the capabilities file on disk.
 // filePath points to the runtime JSON capabilities file provided by the host machine.
-func NewCapabilityCache(filePath string) *CapabilityCache {
-	return &CapabilityCache{
+func NewCapabilityCache(filePath string) (*CapabilityCache, error) {
+	cache := &CapabilityCache{
 		filePath: filePath,
 	}
+
+	data, firmware, err := cache.LoadFromDisk(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate capabilities at startup: %w", err)
+	}
+
+	cache.capabilities = data
+	cache.firmware = firmware
+
+	return cache, nil
 }
 
 // LoadFromDisk reads and parses the capabilities from the provided file path.

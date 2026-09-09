@@ -486,7 +486,10 @@ func initializeComponents(ctx context.Context, cfg *config.Config, cacheTTLConfi
 	if envPath := os.Getenv("OW_CAPABILITIES_FILE"); envPath != "" {
 		capabilitiesPath = envPath
 	}
-	capCache := nats.NewCapabilityCache(capabilitiesPath)
+	capCache, err := nats.NewCapabilityCache(capabilitiesPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize capability cache: %w", err)
+	}
 
 	// Initialize Outbound Schedulers and Buffers
 	log.Println("Initializing Outbound Schedulers...")
