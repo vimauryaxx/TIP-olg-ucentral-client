@@ -149,7 +149,7 @@ func TestCapabilityCache_NegativeFirmware(t *testing.T) {
 	}
 }
 
-func TestCapabilityCache_LazyLoad(t *testing.T) {
+func TestCapabilityCache_GetCapabilities_AfterInitialization(t *testing.T) {
 	mockJSON := `{
 		"version": {
 			"olg": {
