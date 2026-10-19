@@ -437,6 +437,31 @@ func (h *frameHandler) executeTransaction(ctx context.Context, tx *reqmgr.Transa
 		return
 	}
 
+	if command == contracts.CommandConfigure {
+		// Asynchronous submission model: acknowledge Cloud success immediately
+		// once SubmitConfigure() succeeds (desired config stored in KV and notification published).
+		formattedResult := contracts.BuildDeviceResultObject(
+			h.serial,
+			uuidVal,
+			"success",
+			"0",
+			"Success",
+			nil,
+		)
+		ackResp := contracts.JSONRPCResponse{
+			JSONRPC: contracts.JSONRPCVersion,
+			Result:  formattedResult,
+			ID:      tx.CloudRPCID,
+		}
+		ackBytes, _ := json.Marshal(ackResp)
+
+		if err := h.reqMgr.AcknowledgeConfigure(tx.RPCID, uuidVal, ackBytes); err != nil {
+			log.Printf("[FrameHandler] AcknowledgeConfigure failed: %v\n", err)
+			h.failTransaction(tx, fmt.Errorf("failed to acknowledge configure: %w", err))
+		}
+		return
+	}
+
 	// Transition to InFlight (NATS execution runs asynchronously now)
 	if err := h.reqMgr.MarkInFlight(tx.RPCID); err != nil {
 		log.Printf("[FrameHandler] MarkInFlight failed: %v\n", err)

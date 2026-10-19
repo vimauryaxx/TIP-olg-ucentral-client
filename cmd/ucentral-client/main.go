@@ -254,6 +254,20 @@ func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, compon
 	rawCloudID := tx.CloudRPCID
 	isNotification := !tx.RespondToCloud
 
+	if tx.Method == string(contracts.CommandConfigure) {
+		if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
+			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s\n",
+				res.RPCID, tx.ConfigUUID, res.UUID)
+		}
+		if res.Result == string(contracts.ResultSuccess) {
+			log.Printf("[CONFIG DOWNSTREAM SUCCESS] target=%s rpc_id=%s uuid=%s: %s\n",
+				res.Target, res.RPCID, res.UUID, res.Message)
+		} else {
+			log.Printf("[CONFIG DOWNSTREAM FAILURE] target=%s rpc_id=%s uuid=%s code=%s: %s\n",
+				res.Target, res.RPCID, res.UUID, res.ErrorCode, res.Message)
+		}
+	}
+
 	// Build standard device result object containing "status", "serial", and "uuid"
 	formattedResult := contracts.BuildDeviceResultObject(
 		serial,
@@ -328,6 +342,21 @@ func handleNATSResult(ctx context.Context, res agentcore.ResultEnvelope, resultQ
 		// Proactively complete and cache the transaction inside RequestManager using the NATS result payload
 		if tx, exists := components.ReqManager.GetTransaction(res.RPCID); exists {
 			isNotification := !tx.RespondToCloud
+
+			if tx.Method == "configure" {
+				if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
+					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s\n",
+						res.RPCID, tx.ConfigUUID, res.UUID)
+				}
+				if res.Result == string(contracts.ResultSuccess) {
+					log.Printf("[CONFIG DOWNSTREAM SUCCESS] target=%s rpc_id=%s uuid=%s: %s\n",
+						res.Target, res.RPCID, res.UUID, res.Message)
+				} else {
+					log.Printf("[CONFIG DOWNSTREAM FAILURE] target=%s rpc_id=%s uuid=%s code=%s: %s\n",
+						res.Target, res.RPCID, res.UUID, res.ErrorCode, res.Message)
+				}
+			}
+
 			formattedResult := contracts.BuildDeviceResultObject(
 				serial,
 				res.UUID,

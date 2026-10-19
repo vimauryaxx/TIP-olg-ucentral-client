@@ -326,6 +326,70 @@ func (m *DefaultRequestManager) MarkInFlight(rpcID string) error {
 	return nil
 }
 
+// AcknowledgeConfigure marks a configure transaction as submitted to NATS, immediately caches
+// and pushes the Cloud success response, and transitions to TxInFlight to await downstream completion.
+// It sets RespondToCloud to false so subsequent downstream terminal events (completion or timeout)
+// release the state lock and clean up without sending a second response to Cloud.
+func (m *DefaultRequestManager) AcknowledgeConfigure(rpcID string, configUUID string, ackResponse []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	tx, exists := m.transactionsByRPCID[rpcID]
+	if !exists {
+		return ErrTransactionNotFound
+	}
+
+	if tx.Method != "configure" {
+		return errors.New("AcknowledgeConfigure can only be called for configure transactions")
+	}
+
+	if err := validateTransition(tx.State, TxInFlight); err != nil {
+		return err
+	}
+
+	tx.State = TxInFlight
+	tx.ConfigUUID = configUUID
+
+	// 1. Immediately cache the Cloud acknowledgment for same-session duplicate response replay
+	if tx.RequestKey != "" && len(ackResponse) > 0 {
+		ttl := m.cacheTTLConfig.TTLForMethod(tx.Method)
+		m.cache.Set(tx.RequestKey, ackResponse, ttl)
+	}
+
+	// 2. Push the immediate acknowledgment to Cloud scheduler
+	if tx.RespondToCloud && len(ackResponse) > 0 && m.scheduler != nil {
+		if err := m.scheduler.Push(queues.OutboundMessage{
+			SessionID: tx.CloudSessionID,
+			Priority:  queues.PriorityHighest,
+			Payload:   ackResponse,
+		}); err != nil {
+			log.Printf("reqmgr: failed to push configure ack to scheduler (rpc_id=%s): %v", rpcID, err)
+		}
+	}
+
+	// 3. Mark RespondToCloud = false so later downstream terminal transitions do not
+	// send a second response to Cloud or overwrite the cached acknowledgment
+	tx.RespondToCloud = false
+
+	// 4. Process any fast downstream replies that arrived while preparing/publishing
+	if pending, ok := m.pendingReplies[rpcID]; ok {
+		delete(m.pendingReplies, rpcID)
+		return m.terminalTransition(rpcID, pending.State, pending.Payload)
+	}
+
+	if tx.DispatchTimer != nil {
+		tx.DispatchTimer.Stop()
+	}
+
+	// 5. Start the downstream execution timer
+	tx.ResponseDeadline = time.Now().Add(tx.TimeoutDuration)
+	tx.ResponseTimer = time.AfterFunc(tx.TimeoutDuration, func() {
+		m.Timeout(rpcID)
+	})
+
+	return nil
+}
+
 // Complete marks a transaction as successfully completed.
 // STRICT CONTRACT: Complete MUST NOT be called for the intermediate acknowledgement of an
 // asynchronous state-changing operation (e.g. upgrade). Those must be handled exclusively by
@@ -600,6 +664,10 @@ func (m *DefaultRequestManager) Timeout(rpcID string) error {
 	tx, exists := m.transactionsByRPCID[rpcID]
 	if !exists {
 		return ErrTransactionNotFound
+	}
+
+	if !tx.RespondToCloud && tx.Method == "configure" {
+		log.Printf("[reqmgr] Downstream execution timed out for configure rpc_id=%s uuid=%s (unknown downstream outcome, lock released)\n", rpcID, tx.ConfigUUID)
 	}
 
 	timeoutResp := m.buildTimeoutResponse(tx)
