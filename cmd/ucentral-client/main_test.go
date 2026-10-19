@@ -207,3 +207,85 @@ func TestOperationStoreDirEnv(t *testing.T) {
 		}
 	})
 }
+
+func TestProcessNATSResult_ConfigureUUIDMismatch_DropsResultAndPreservesLock(t *testing.T) {
+	cache := reqmgr.NewTransactionCache()
+	cacheTTL := reqmgr.CacheTTLConfig{}
+	scheduler := queues.NewPriorityScheduler(10, 10)
+	store := &errorMockStore{}
+
+	m, err := reqmgr.NewRequestManager(10*time.Second, cacheTTL, cache, scheduler, store, 1000, 15*time.Minute, 100)
+	if err != nil {
+		t.Fatalf("failed to create reqmgr: %v", err)
+	}
+
+	components := &AppComponents{
+		ReqManager: m,
+		Scheduler:  scheduler,
+	}
+
+	cloudRPCID := json.RawMessage(`"cfg-test-200"`)
+	tx, err := m.CreateTransaction("session-1", cloudRPCID, true, "configure", 10*time.Second, true)
+	if err != nil {
+		t.Fatalf("failed to create tx: %v", err)
+	}
+
+	// Submit configure and acknowledge Cloud
+	_ = m.MarkPreparingDispatch(tx.RPCID)
+	_ = m.MarkPendingPublish(tx.RPCID)
+	ackPayload := []byte(`{"jsonrpc":"2.0","id":"cfg-test-200","result":{"status":{"error":0,"text":"Success"}}}`)
+	if err := m.AcknowledgeConfigure(tx.RPCID, "200", ackPayload); err != nil {
+		t.Fatalf("AcknowledgeConfigure failed: %v", err)
+	}
+
+	// 1. Deliver downstream result with matching RPCID but mismatched UUID (199 != 200)
+	resMismatch := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		CommandType: "configure",
+		UUID:        "199",
+		Result:      "success",
+		Message:     "applied stale uuid",
+	}
+
+	processNATSResult(context.Background(), resMismatch, components, "serial-123")
+
+	// Verify the transaction STILL exists in RequestManager
+	activeTx, exists := m.GetTransaction(tx.RPCID)
+	if !exists {
+		t.Fatalf("expected transaction to remain active after mismatched UUID result, but it was removed")
+	}
+	if activeTx.State != reqmgr.TxInFlight {
+		t.Fatalf("expected transaction to remain in TxInFlight, got %v", activeTx.State)
+	}
+
+	// Verify the state lock is STILL held (new state-changing request must be rejected as busy)
+	_, err = m.CreateTransaction("session-1", json.RawMessage(`"concurrent-cfg"`), true, "configure", 10*time.Second, true)
+	if err == nil {
+		t.Fatalf("expected state-changing lock to be held after mismatched UUID result, but new transaction was admitted")
+	}
+
+	// 2. Now deliver the matching downstream result (UUID 200)
+	resMatching := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		CommandType: "configure",
+		UUID:        "200",
+		Result:      "success",
+		Message:     "commit successful",
+	}
+
+	processNATSResult(context.Background(), resMatching, components, "serial-123")
+
+	// Verify transaction is now completed and removed
+	if _, exists := m.GetTransaction(tx.RPCID); exists {
+		t.Fatalf("expected transaction to be completed and removed after matching UUID result, but it still exists")
+	}
+
+	// Verify state lock is now released
+	newTx, err := m.CreateTransaction("session-1", json.RawMessage(`"next-cfg"`), true, "configure", 10*time.Second, true)
+	if err != nil {
+		t.Fatalf("expected state lock to be released after matching UUID result, but got error: %v", err)
+	}
+	if newTx == nil {
+		t.Fatal("expected new transaction to be created")
+	}
+}

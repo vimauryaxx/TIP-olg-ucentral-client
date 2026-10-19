@@ -256,8 +256,9 @@ func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, compon
 
 	if tx.Method == string(contracts.CommandConfigure) {
 		if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
-			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s\n",
+			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s (dropping mismatched downstream result)\n",
 				res.RPCID, tx.ConfigUUID, res.UUID)
+			return
 		}
 		if res.Result == string(contracts.ResultSuccess) {
 			log.Printf("[CONFIG DOWNSTREAM SUCCESS] target=%s rpc_id=%s uuid=%s: %s\n",
@@ -345,8 +346,9 @@ func handleNATSResult(ctx context.Context, res agentcore.ResultEnvelope, resultQ
 
 			if tx.Method == "configure" {
 				if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
-					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s\n",
+					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s (dropping mismatched downstream result)\n",
 						res.RPCID, tx.ConfigUUID, res.UUID)
+					return
 				}
 				if res.Result == string(contracts.ResultSuccess) {
 					log.Printf("[CONFIG DOWNSTREAM SUCCESS] target=%s rpc_id=%s uuid=%s: %s\n",
