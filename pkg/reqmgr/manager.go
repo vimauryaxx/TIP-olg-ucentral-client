@@ -230,31 +230,7 @@ func (m *DefaultRequestManager) CreateTransaction(sessionID string, cloudRPCID j
 	}
 	m.transactionsByRPCID[rpcID] = tx
 
-	if m.dispatchTimeout > 0 {
-		tx.DispatchTimer = time.AfterFunc(m.dispatchTimeout, func() {
-			m.dispatchTimeoutFail(rpcID)
-		})
-	}
-
 	return tx, nil
-}
-
-// DisarmDispatchTimer stops the pre-flight dispatch timer immediately upon successful
-// network dispatch, preventing dispatchTimeoutFail from racing with response preparation.
-func (m *DefaultRequestManager) DisarmDispatchTimer(rpcID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	tx, exists := m.transactionsByRPCID[rpcID]
-	if !exists {
-		return ErrTransactionNotFound
-	}
-
-	if tx.DispatchTimer != nil {
-		tx.DispatchTimer.Stop()
-		tx.DispatchTimer = nil
-	}
-	return nil
 }
 
 func (m *DefaultRequestManager) dispatchTimeoutFail(rpcID string) {

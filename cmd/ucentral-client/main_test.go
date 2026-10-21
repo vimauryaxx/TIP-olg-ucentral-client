@@ -303,6 +303,18 @@ func TestProcessNATSResult_ConfigureUUIDMismatch_DropsResultAndPreservesLock(t *
 	processNATSResult(context.Background(), resWrongTarget, components, "serial-123")
 	assertTxActiveAndLocked("mismatched target")
 
+	// 4.5 Deliver downstream result with empty Target ("" != "vyos") -> must be dropped
+	resEmptyTarget := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		Target:      "",
+		CommandType: "configure",
+		UUID:        "200",
+		Result:      "success",
+		Message:     "empty target",
+	}
+	processNATSResult(context.Background(), resEmptyTarget, components, "serial-123")
+	assertTxActiveAndLocked("empty target")
+
 	// 5. Now deliver the strictly matching downstream result (Target: vyos, CommandType: configure, UUID: 200)
 	resMatching := agentcore.ResultEnvelope{
 		RPCID:       tx.RPCID,

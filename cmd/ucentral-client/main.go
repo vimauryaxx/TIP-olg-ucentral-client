@@ -263,9 +263,9 @@ func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, compon
 			return
 		}
 
-		// 2. Enforce matching Target if configured
-		if components.Target != "" && res.Target != "" && res.Target != components.Target {
-			log.Printf("[CONFIG DOWNSTREAM WARNING] Target mismatch for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
+		// 2. Enforce matching non-empty Target if configured
+		if components.Target != "" && (res.Target == "" || res.Target != components.Target) {
+			log.Printf("[CONFIG DOWNSTREAM WARNING] Target mismatch or empty for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
 				res.RPCID, components.Target, res.Target)
 			return
 		}
@@ -368,9 +368,9 @@ func handleNATSResult(ctx context.Context, res agentcore.ResultEnvelope, resultQ
 					return
 				}
 
-				// 2. Enforce matching Target if configured
-				if components.Target != "" && res.Target != "" && res.Target != components.Target {
-					log.Printf("[CONFIG OVERFLOW WARNING] Target mismatch for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
+				// 2. Enforce matching non-empty Target if configured
+				if components.Target != "" && (res.Target == "" || res.Target != components.Target) {
+					log.Printf("[CONFIG OVERFLOW WARNING] Target mismatch or empty for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
 						res.RPCID, components.Target, res.Target)
 					return
 				}

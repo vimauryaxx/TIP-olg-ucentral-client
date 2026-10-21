@@ -437,10 +437,6 @@ func (h *frameHandler) executeTransaction(ctx context.Context, tx *reqmgr.Transa
 		return
 	}
 
-	// Coordinate with RequestManager: disarm dispatch timer immediately upon successful submission
-	// so that response serialization and context switches cannot race with dispatchTimeoutFail.
-	_ = h.reqMgr.DisarmDispatchTimer(tx.RPCID)
-
 	if command == contracts.CommandConfigure {
 		// Asynchronous submission model: acknowledge Cloud success immediately
 		// once SubmitConfigure() succeeds (desired config stored in KV and notification published).
