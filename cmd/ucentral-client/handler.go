@@ -326,7 +326,7 @@ func (h *frameHandler) HandleFrame(ctx context.Context, frame websocket.InboundF
 	timeout := h.getTransactionTimeout(rpcReq.Method, rpcReq.Params)
 
 	// Create transaction (REQ-007, REQ-008, REQ-009, REQ-029)
-	tx, err := h.reqMgr.CreateTransaction(frame.SessionID, rpcReq.ID, !isNotification, rpcReq.Method, timeout, isStateChanging)
+	tx, err := h.reqMgr.CreateTransaction(frame.SessionID, rpcReq.ID, !isNotification, rpcReq.Method, timeout, isStateChanging, uuidVal)
 	if err != nil {
 		var cacheErr *reqmgr.CachedResponseError
 		if errors.As(err, &cacheErr) {

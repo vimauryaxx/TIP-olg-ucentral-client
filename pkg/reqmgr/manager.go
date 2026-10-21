@@ -161,7 +161,7 @@ func CanonicalRequestKey(sessionID string, id json.RawMessage) (string, error) {
 	}
 }
 
-func (m *DefaultRequestManager) CreateTransaction(sessionID string, cloudRPCID json.RawMessage, respondToCloud bool, method string, timeout time.Duration, isStateChanging bool) (*Transaction, error) {
+func (m *DefaultRequestManager) CreateTransaction(sessionID string, cloudRPCID json.RawMessage, respondToCloud bool, method string, timeout time.Duration, isStateChanging bool, configUUID ...string) (*Transaction, error) {
 	isNotification := len(cloudRPCID) == 0 || string(cloudRPCID) == "null"
 	if isNotification && respondToCloud {
 		return nil, errors.New("cannot request response for a notification (null/empty ID)")
@@ -211,6 +211,11 @@ func (m *DefaultRequestManager) CreateTransaction(sessionID string, cloudRPCID j
 		m.activeStateOwner = LockOwnedByRPC
 	}
 
+	var cfgUUID string
+	if len(configUUID) > 0 {
+		cfgUUID = configUUID[0]
+	}
+
 	tx := &Transaction{
 		RPCID:            rpcID,
 		CloudSessionID:   sessionID,
@@ -222,6 +227,7 @@ func (m *DefaultRequestManager) CreateTransaction(sessionID string, cloudRPCID j
 		CreatedAt:        time.Now(),
 		TimeoutDuration:  timeout,
 		DispatchDeadline: time.Now().Add(m.dispatchTimeout),
+		ConfigUUID:       cfgUUID,
 	}
 
 	hasValidID := !isNotification && reqKey != ""

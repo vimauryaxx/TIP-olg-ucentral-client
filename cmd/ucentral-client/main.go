@@ -271,7 +271,7 @@ func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, compon
 		}
 
 		// 3. Enforce non-empty UUID strictly matching tx.ConfigUUID
-		if tx.ConfigUUID != "" && (res.UUID == "" || tx.ConfigUUID != res.UUID) {
+		if res.UUID == "" || tx.ConfigUUID == "" || tx.ConfigUUID != res.UUID {
 			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch or empty for rpc_id=%s: expected %s, got %q (dropping mismatched downstream result)\n",
 				res.RPCID, tx.ConfigUUID, res.UUID)
 			return
@@ -376,7 +376,7 @@ func handleNATSResult(ctx context.Context, res agentcore.ResultEnvelope, resultQ
 				}
 
 				// 3. Enforce non-empty UUID strictly matching tx.ConfigUUID
-				if tx.ConfigUUID != "" && (res.UUID == "" || tx.ConfigUUID != res.UUID) {
+				if res.UUID == "" || tx.ConfigUUID == "" || tx.ConfigUUID != res.UUID {
 					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch or empty for rpc_id=%s: expected %s, got %q (dropping mismatched downstream result)\n",
 						res.RPCID, tx.ConfigUUID, res.UUID)
 					return
