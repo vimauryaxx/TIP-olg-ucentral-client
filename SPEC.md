@@ -879,6 +879,9 @@ If the result payload cannot be decoded or its `rpc_id` does not match an active
     // If a fast reply was buffered in pendingReplies during TxPendingPublish, MarkInFlight MUST immediately submit it to 
     // the terminal processing sequence after safely entering TxInFlight.
     func (m *DefaultRequestManager) MarkInFlight(rpcID string) error
+    // DisarmDispatchTimer stops the pre-flight dispatch timer immediately upon successful
+    // network dispatch, preventing dispatchTimeoutFail from racing with response preparation.
+    func (m *DefaultRequestManager) DisarmDispatchTimer(rpcID string) error
     // AcknowledgeConfigure enables asynchronous configure submission.
     // Following successful submission via SubmitConfigure(), the uCentral client immediately returns
     // success to Cloud and continues downstream execution asynchronously:

@@ -240,6 +240,7 @@ type AppComponents struct {
 	PayloadLimitScript     int
 	PayloadLimitCertUpdate int
 	PayloadLimitDefault    int
+	Target                 string
 }
 
 func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, components *AppComponents, serial string) {
@@ -255,8 +256,23 @@ func processNATSResult(ctx context.Context, res agentcore.ResultEnvelope, compon
 	isNotification := !tx.RespondToCloud
 
 	if tx.Method == string(contracts.CommandConfigure) {
-		if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
-			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s (dropping mismatched downstream result)\n",
+		// 1. Enforce matching CommandType
+		if res.CommandType != string(contracts.CommandConfigure) {
+			log.Printf("[CONFIG DOWNSTREAM WARNING] Command type mismatch for rpc_id=%s: expected configure, got %q (dropping mismatched downstream result)\n",
+				res.RPCID, res.CommandType)
+			return
+		}
+
+		// 2. Enforce matching Target if configured
+		if components.Target != "" && res.Target != "" && res.Target != components.Target {
+			log.Printf("[CONFIG DOWNSTREAM WARNING] Target mismatch for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
+				res.RPCID, components.Target, res.Target)
+			return
+		}
+
+		// 3. Enforce non-empty UUID strictly matching tx.ConfigUUID
+		if tx.ConfigUUID != "" && (res.UUID == "" || tx.ConfigUUID != res.UUID) {
+			log.Printf("[CONFIG DOWNSTREAM WARNING] UUID mismatch or empty for rpc_id=%s: expected %s, got %q (dropping mismatched downstream result)\n",
 				res.RPCID, tx.ConfigUUID, res.UUID)
 			return
 		}
@@ -344,9 +360,24 @@ func handleNATSResult(ctx context.Context, res agentcore.ResultEnvelope, resultQ
 		if tx, exists := components.ReqManager.GetTransaction(res.RPCID); exists {
 			isNotification := !tx.RespondToCloud
 
-			if tx.Method == "configure" {
-				if tx.ConfigUUID != "" && res.UUID != "" && tx.ConfigUUID != res.UUID {
-					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch for rpc_id=%s: expected %s, got %s (dropping mismatched downstream result)\n",
+			if tx.Method == string(contracts.CommandConfigure) {
+				// 1. Enforce matching CommandType
+				if res.CommandType != string(contracts.CommandConfigure) {
+					log.Printf("[CONFIG OVERFLOW WARNING] Command type mismatch for rpc_id=%s: expected configure, got %q (dropping mismatched downstream result)\n",
+						res.RPCID, res.CommandType)
+					return
+				}
+
+				// 2. Enforce matching Target if configured
+				if components.Target != "" && res.Target != "" && res.Target != components.Target {
+					log.Printf("[CONFIG OVERFLOW WARNING] Target mismatch for rpc_id=%s: expected %q, got %q (dropping mismatched downstream result)\n",
+						res.RPCID, components.Target, res.Target)
+					return
+				}
+
+				// 3. Enforce non-empty UUID strictly matching tx.ConfigUUID
+				if tx.ConfigUUID != "" && (res.UUID == "" || tx.ConfigUUID != res.UUID) {
+					log.Printf("[CONFIG OVERFLOW WARNING] UUID mismatch or empty for rpc_id=%s: expected %s, got %q (dropping mismatched downstream result)\n",
 						res.RPCID, tx.ConfigUUID, res.UUID)
 					return
 				}
@@ -623,6 +654,7 @@ func initializeComponents(ctx context.Context, cfg *config.Config, cacheTTLConfi
 		PayloadLimitScript:     payloadLimitScript,
 		PayloadLimitCertUpdate: payloadLimitCertUpdate,
 		PayloadLimitDefault:    payloadLimitDefault,
+		Target:                 cfg.NATS.Target,
 	}, nil
 }
 

@@ -2192,3 +2192,50 @@ func TestDefaultRequestManager_AcknowledgeConfigure_InvalidMethod(t *testing.T) 
 		t.Fatalf("expected error for non-configure method, got: %v", err)
 	}
 }
+
+func TestDefaultRequestManager_DisarmDispatchTimer(t *testing.T) {
+	cache := NewTransactionCache()
+	config := CacheTTLConfig{}
+	scheduler := queues.NewPriorityScheduler(10, 10)
+	store := &mockStore{}
+	// Set a very short dispatch timeout (50ms)
+	m, _ := NewRequestManager(50*time.Millisecond, config, cache, scheduler, store, 1000, 15*time.Minute, 100)
+
+	tx, err := m.CreateTransaction("session-1", json.RawMessage(`123`), true, "configure", 10*time.Second, true)
+	if err != nil {
+		t.Fatalf("failed to create transaction: %v", err)
+	}
+
+	_ = m.MarkPreparingDispatch(tx.RPCID)
+	_ = m.MarkPendingPublish(tx.RPCID)
+
+	// Disarm the dispatch timer immediately upon successful submission
+	if err := m.DisarmDispatchTimer(tx.RPCID); err != nil {
+		t.Fatalf("DisarmDispatchTimer failed: %v", err)
+	}
+
+	// Wait longer than the dispatch timeout (100ms > 50ms)
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify the transaction was NOT failed by dispatch timeout
+	m.mu.Lock()
+	activeTx, exists := m.transactionsByRPCID[tx.RPCID]
+	m.mu.Unlock()
+	if !exists {
+		t.Fatalf("expected transaction to survive after DisarmDispatchTimer, but it was removed")
+	}
+	if activeTx.State != TxPendingPublish {
+		t.Fatalf("expected state TxPendingPublish, got %v", activeTx.State)
+	}
+
+	// Verify AcknowledgeConfigure succeeds cleanly
+	ackBytes := []byte(`{"jsonrpc":"2.0","id":123,"result":{"status":{"error":0,"text":"Success"}}}`)
+	if err := m.AcknowledgeConfigure(tx.RPCID, "100", ackBytes); err != nil {
+		t.Fatalf("AcknowledgeConfigure failed after DisarmDispatchTimer: %v", err)
+	}
+
+	// Verify DisarmDispatchTimer returns ErrTransactionNotFound for invalid RPCID
+	if err := m.DisarmDispatchTimer("invalid-rpc-id"); !errors.Is(err, ErrTransactionNotFound) {
+		t.Fatalf("expected ErrTransactionNotFound, got: %v", err)
+	}
+}

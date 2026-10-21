@@ -222,6 +222,7 @@ func TestProcessNATSResult_ConfigureUUIDMismatch_DropsResultAndPreservesLock(t *
 	components := &AppComponents{
 		ReqManager: m,
 		Scheduler:  scheduler,
+		Target:     "vyos",
 	}
 
 	cloudRPCID := json.RawMessage(`"cfg-test-200"`)
@@ -238,35 +239,73 @@ func TestProcessNATSResult_ConfigureUUIDMismatch_DropsResultAndPreservesLock(t *
 		t.Fatalf("AcknowledgeConfigure failed: %v", err)
 	}
 
-	// 1. Deliver downstream result with matching RPCID but mismatched UUID (199 != 200)
+	assertTxActiveAndLocked := func(step string) {
+		t.Helper()
+		activeTx, exists := m.GetTransaction(tx.RPCID)
+		if !exists {
+			t.Fatalf("[%s] expected transaction to remain active, but it was removed", step)
+		}
+		if activeTx.State != reqmgr.TxInFlight {
+			t.Fatalf("[%s] expected transaction to remain in TxInFlight, got %v", step, activeTx.State)
+		}
+		_, err = m.CreateTransaction("session-1", json.RawMessage(`"concurrent-cfg"`), true, "configure", 10*time.Second, true)
+		if err == nil {
+			t.Fatalf("[%s] expected state-changing lock to be held, but new transaction was admitted", step)
+		}
+	}
+
+	// 1. Deliver downstream result with empty UUID -> must be dropped
+	resEmptyUUID := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		Target:      "vyos",
+		CommandType: "configure",
+		UUID:        "",
+		Result:      "success",
+		Message:     "empty uuid result",
+	}
+	processNATSResult(context.Background(), resEmptyUUID, components, "serial-123")
+	assertTxActiveAndLocked("empty UUID")
+
+	// 2. Deliver downstream result with mismatched UUID (199 != 200) -> must be dropped
 	resMismatch := agentcore.ResultEnvelope{
 		RPCID:       tx.RPCID,
+		Target:      "vyos",
 		CommandType: "configure",
 		UUID:        "199",
 		Result:      "success",
 		Message:     "applied stale uuid",
 	}
-
 	processNATSResult(context.Background(), resMismatch, components, "serial-123")
+	assertTxActiveAndLocked("mismatched UUID")
 
-	// Verify the transaction STILL exists in RequestManager
-	activeTx, exists := m.GetTransaction(tx.RPCID)
-	if !exists {
-		t.Fatalf("expected transaction to remain active after mismatched UUID result, but it was removed")
+	// 3. Deliver downstream result with mismatched CommandType ("action" != "configure") -> must be dropped
+	resWrongCmd := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		Target:      "vyos",
+		CommandType: "action",
+		UUID:        "200",
+		Result:      "success",
+		Message:     "unrelated action",
 	}
-	if activeTx.State != reqmgr.TxInFlight {
-		t.Fatalf("expected transaction to remain in TxInFlight, got %v", activeTx.State)
-	}
+	processNATSResult(context.Background(), resWrongCmd, components, "serial-123")
+	assertTxActiveAndLocked("mismatched command type")
 
-	// Verify the state lock is STILL held (new state-changing request must be rejected as busy)
-	_, err = m.CreateTransaction("session-1", json.RawMessage(`"concurrent-cfg"`), true, "configure", 10*time.Second, true)
-	if err == nil {
-		t.Fatalf("expected state-changing lock to be held after mismatched UUID result, but new transaction was admitted")
+	// 4. Deliver downstream result with mismatched Target ("other" != "vyos") -> must be dropped
+	resWrongTarget := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		Target:      "other",
+		CommandType: "configure",
+		UUID:        "200",
+		Result:      "success",
+		Message:     "unrelated target",
 	}
+	processNATSResult(context.Background(), resWrongTarget, components, "serial-123")
+	assertTxActiveAndLocked("mismatched target")
 
-	// 2. Now deliver the matching downstream result (UUID 200)
+	// 5. Now deliver the strictly matching downstream result (Target: vyos, CommandType: configure, UUID: 200)
 	resMatching := agentcore.ResultEnvelope{
 		RPCID:       tx.RPCID,
+		Target:      "vyos",
 		CommandType: "configure",
 		UUID:        "200",
 		Result:      "success",
