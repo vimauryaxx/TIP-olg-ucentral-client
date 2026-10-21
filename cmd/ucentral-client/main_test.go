@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -327,4 +328,60 @@ func TestProcessNATSResult_ConfigureUUIDMismatch_DropsResultAndPreservesLock(t *
 	if newTx == nil {
 		t.Fatal("expected new transaction to be created")
 	}
+}
+
+func TestProcessNATSResult_LateResultAfterClientTimeout_SafelyIgnored(t *testing.T) {
+	cache := reqmgr.NewTransactionCache()
+	config := reqmgr.CacheTTLConfig{DefaultTTL: 10 * time.Minute}
+	scheduler := queues.NewPriorityScheduler(10, 10)
+	store := &mockStore{}
+	m, _ := reqmgr.NewRequestManager(10*time.Second, config, cache, scheduler, store, 1000, 15*time.Minute, 100)
+
+	components := &AppComponents{
+		ReqManager: m,
+		Target:     "vyos",
+	}
+
+	// 1. Create and submit configure transaction
+	tx, err := m.CreateTransaction("session-1", json.RawMessage(`"late-test"`), true, "configure", 50*time.Millisecond, true)
+	if err != nil {
+		t.Fatalf("failed to create transaction: %v", err)
+	}
+	_ = m.MarkPreparingDispatch(tx.RPCID)
+	_ = m.MarkPendingPublish(tx.RPCID)
+	ackBytes := []byte(`{"jsonrpc":"2.0","id":"late-test","result":{"status":{"error":0,"text":"Success"}}}`)
+	_ = m.AcknowledgeConfigure(tx.RPCID, "300", ackBytes)
+
+	// 2. Client-side timeout fires before downstream finishes
+	err = m.Timeout(tx.RPCID)
+	if err != nil {
+		t.Fatalf("Timeout failed: %v", err)
+	}
+
+	// Verify state lock is now released
+	newTx, err := m.CreateTransaction("session-1", json.RawMessage(`"after-timeout"`), true, "configure", 10*time.Second, true)
+	if err != nil {
+		t.Fatalf("expected state lock to be available after timeout: %v", err)
+	}
+
+	// 3. Now downstream VyOS finishes very late and sends a result for the timed-out rpc_id
+	lateResult := agentcore.ResultEnvelope{
+		RPCID:       tx.RPCID,
+		Target:      "vyos",
+		CommandType: "configure",
+		UUID:        "300",
+		Result:      "success",
+		Message:     "late commit finished",
+	}
+
+	// Must be safely ignored without panicking or affecting active transactions
+	processNATSResult(context.Background(), lateResult, components, "serial-123")
+
+	// Verify the currently active transaction (after-timeout) is untouched and still holds the lock
+	_, busyErr := m.CreateTransaction("session-1", json.RawMessage(`"busy-check"`), true, "configure", 10*time.Second, true)
+	if !errors.Is(busyErr, reqmgr.ErrStateLockBusy) {
+		t.Fatalf("expected stateLock to still be held by active transaction after late result dropped: %v", busyErr)
+	}
+
+	_ = m.Fail(newTx.RPCID, nil)
 }
